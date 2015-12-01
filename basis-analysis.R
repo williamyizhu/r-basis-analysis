@@ -1,105 +1,134 @@
-# TODO: Add comment
-
-##############################################################################################################
 rm(list=ls(all=TRUE)) 
 options(width = 438L)
 
-library(WindR)
-w.start()
+#library(WindR)
+#w.start()
 #w.menu()
 #w.isconnected()
 
-#-------------------------------------------------------
-Year0 = 2000
-YearLengh = 20
-#create a data.frame for index start and end date of a month
-YearVec = rep(Year0 + seq(0, YearLengh-1), each = 12)
-MonthVec = rep(formatC(seq(1, 12), width=2, format="d", flag="0"), YearLengh)
-#start date of each month
-MonthStart = as.Date(paste(YearVec, MonthVec, "01", sep="-"))
-#c(YearVec[-1], Year0 + YearLengh)
-#c(MonthVec[-1], "01")
-MonthEnd = as.Date(paste(c(YearVec[-1], Year0 + YearLengh), c(MonthVec[-1], "01"), "01", sep="-")) - 1
-#Year-Month data.frame
-YM = data.frame(YearVec, MonthVec, MonthStart, MonthEnd)
-names(YM) = c("Year", "Month", "Start", "End")
-
 #---------------- contracts ----------------
+# TODO: configuration
 BarSize = 15
+BarSize = "DAY"
 Underlying ="I"
 Exchange = "DCE"
+#Underlying ="CU"
+#Exchange = "SHF"
+#contract years
+c.yg = formatC(seq(10,16), width=2, flag='0')
 #contract months
 c.tg = c("01","05","09")
-c.tg = formatC(seq(1,12), width=2, flag='0')
-#c.tg = c("09")
+#c.tg = c("03","06","09","12")
+#c.tg = formatC(seq(1,12), width=2, flag='0')
 #fields obtained from wind terminal
-fd = c("close", "volume", "oi")
+#fd = c("close", "volume", "oi")
 fd = c("close")
+fd2 = substr(fd,1,2)
+#choose which dataset file to use
+ds.date = "2015-12-01"
 
-#---------------- Contract.DF ----------------
-Contract.DF = read.csv(paste(Underlying,Exchange,"csv",sep="."), header=FALSE)
-names(Contract.DF) = c("Month", "Start", "End")
-Contract.DF$Contract = paste(Underlying, Contract.DF$Month, ".", Exchange, sep="")
-
-#---------------- contract data ----------------
-c.dt = data.frame(DATETIME=character(0)) 
-for (i in 1:length(Contract.DF$Start)) {
-	if (substr(Contract.DF$Month[i],3,4) %in% c.tg) {
-		print(as.character(Contract.DF$Contract[i]))		
-		ts = paste(Contract.DF$Start[i], "00:00:00")
-		es = paste(Contract.DF$End[i], "23:59:59")
-#		download data from wind terminal
-		w_wsi_data = w.wsi(Contract.DF$Contract[i], paste(fd,collapse=","), ts, es, BarSize=BarSize)
-		names(w_wsi_data$Data) = c("DATETIME", paste(Contract.DF$Contract[i],substr(fd,1,2),sep="."))
-#		merge contracts into the same data.frame
-		c.dt = merge(c.dt, w_wsi_data$Data, by="DATETIME", all=TRUE)		
-	}
-}
-
-#export to csv file
+#---------------- import to csv file ----------------
 fpath = paste(getwd(), "/dataset/", sep="")
-fname = paste(Underlying, Exchange, paste(c.tg,collapse=""), BarSize, Sys.Date(), "csv", sep=".")
-write.table(c.dt, file=paste(fpath,fname,sep=""), sep=",", row.names=FALSE, col.names=TRUE)
+fname = paste(Underlying, Exchange, ds.date, BarSize, "csv", sep=".")
+c.dt = read.table(file=paste(fpath,fname,sep=""), header=TRUE, sep=",")
 
-head(c.dt, n=20)
-tail(c.dt, n=20)
+#field name of c.dt
+cf = data.frame(matrix(unlist(strsplit(names(c.dt)[-1],"[.]")), ncol=3, byrow=TRUE))
+names(cf) = c("Contract", "Exchange", "Field")
+tt = nchar(Underlying)
+cf$Year = substr(cf$Contract, tt+1, tt+2)
+cf$Month = substr(cf$Contract, tt+3, tt+4)
+
+#choose only c.tg related month, and fd2 related fields
+ind = c(TRUE, ((cf$Year %in% c.yg) & (cf$Month %in% c.tg) & cf$Field %in% fd2))
+dataset = c.dt[,ind]
+
+##export to csv file
+#fpath = paste(getwd(), "/analysis/", sep="")
+#fname = paste(Underlying, Exchange, Sys.Date(), BarSize, paste(c.tg,collapse=""), paste(fd2,collapse=""), "csv", sep=".")
+#write.table(dataset, file=paste(fpath,fname,sep=""), sep=",", row.names=FALSE, col.names=TRUE)
+head(dataset)
+tail(dataset)
+
+#---------------- analysis ----------------
+tmp = dim(dataset)[2]
+ntmp = names(dataset)
+sp0 = dataset[,seq(2,tmp-1)] - dataset[,seq(3,tmp)]
+bf0 = dataset[,seq(2,tmp-2)] - 2*dataset[,seq(3,tmp-1)] + dataset[,seq(4,tmp)]
+names(sp0) = paste(ntmp[seq(2,tmp-1)], "-", ntmp[seq(3,tmp)])
+names(bf0) = paste(ntmp[seq(2,tmp-2)], "-2*", ntmp[seq(3,tmp-1)], "+", ntmp[seq(4,tmp)])
+
+# TODO: sp/bf combination
+#sp = sp0[,c(1,3,5,7,9,11,13)]
+
+sp = sp0
+
+
+bf = bf0
+
+#---------------- time series plot ----------------
+matplot(sp, type="l", col=dim(sp)[2]:1, xlab=BarSize, ylab="Calendar Spread", main=paste(Underlying,".",Exchange," Time Series Plot"))
+legend('topleft', legend=names(sp), text.col=dim(sp)[2]:1, cex=0.65)
+grid()
+
+matplot(bf, type="l", col=dim(bf)[2]:1, xlab=BarSize, ylab="Butterfly", main=paste(Underlying,".",Exchange," Time Series Plot"))
+legend('topleft', legend=names(bf), text.col=dim(bf)[2]:1, cex=0.65)
+grid()
+
+#---------------- seasonal plot ----------------
+#---- calendar spread ----
+mlen = max(apply(sp, 2, function(x){sum(!is.na(x))}))
+sp2 = vector()
+for (i in 1:dim(sp)[2]) {
+	mtmp = sp[!is.na(sp[,i]),i]
+	length(mtmp) = mlen
+	sp2 = cbind(sp2, mtmp)
+}
+colnames(sp2) = names(sp)
+
+# TODO: plot range, exclude the close to expiration data
+sp3 = sp2[1:min(143, dim(sp2)[1]),]
+
+matplot(sp3, type="l", col=dim(sp3)[2]:1, xlab=BarSize, ylab="Calendar Spread", main=paste(Underlying,".",Exchange," Seasonal Plot"))
+#find the max and min of each combination
+mm = matrix(paste(c("min","max"), apply(sp3,2,range,na.rm=TRUE), sep="="), ncol=2, byrow=TRUE)
+lgd = paste(colnames(sp3), mm[,1], mm[,2])
+legend('topleft', legend=lgd, text.col=dim(sp3)[2]:1, cex=0.65)
+grid()
+
+#---- butterfly ----
+mlen = max(apply(bf, 2, function(x){sum(!is.na(x))}))
+bf2 = vector()
+for (i in 1:dim(bf)[2]) {
+	mtmp = bf[!is.na(bf[,i]),i]
+	length(mtmp) = mlen
+	bf2 = cbind(bf2, mtmp)
+}
+colnames(bf2) = names(bf)
+
+# TODO: plot range, exclude the close to expiration data
+bf3 = bf2[1:min(66, dim(bf2)[1]),]
+
+matplot(bf3, type="l", col=dim(bf3)[2]:1, xlab=BarSize, ylab="Butterfly", main=paste(Underlying,".",Exchange," Seasonal Plot"))
+#find the max and min of each combination
+mm = matrix(paste(c("min","max"), apply(bf3,2,range,na.rm=TRUE), sep="="), ncol=2, byrow=TRUE)
+lgd = paste(colnames(bf3), mm[,1], mm[,2])
+legend('topleft', legend=lgd, text.col=dim(bf3)[2]:1, cex=0.65)
+grid()
 
 
 
-c
-#RollMonth = c(4,8,12)
-#FrontMonth = c(5,9,13)
-#BackMonth = c(9,13,17)
+#names(sp) = paste(ntmp[seq(2,tmp-1)], ntmp[seq(3,9)], sep="-")
+
+
+#length(bf[!is.na(bf[,2]),2])
 #
-#Exchange = "SHF"
-#Underlying = "CU"
-#TradingCalendar="SHFE"
-#RollMonth = seq(1:12)
-#FrontMonth = RollMonth + 1
-#BackMonth = RollMonth + 2
+#range(sp,na.rm=TRUE)
 #
-##historical price range
-DataStart = "2011-01-01"
-DataEnd = "2015-08-30"
-##roll days, i.e., trading day of the month
-#TradingDayOfMonthRollStart = 6
-#TradingDayOfMonthRollEnd = 10
-##index and ETN initial value
-#IndexER0 = 1000
-#IndexTR0 = 1000
-#ETNIV0 = 100
-##interest rate
-#InterestRate = 0.0035
-#InterestTerm = 1
-##ETN products
-#LevInd = c("LEV1X", "INV1X")
-#Leverage = c(1, -1)
-#YearlyFee = c(0.0055, 0.0075)
+#yrange.sp = apply(sp, 2, range, na.rm=TRUE)
+#
+#range(bf,na.rm=TRUE)
+#
+#yrange.bf = apply(bf, 2, range, na.rm=TRUE)
 
-#----------------  ----------------
-#trading day of an exchange
-#TradingDate = w.tdays(DataStart, DataEnd, paste("TradingCalendar=",TradingCalendar,sep="")) 
 
-w_wsd_data = w.wsd("i1601.DCE", "open,high,low,close,pre_settle,settle,volume,oi", start, end, paste("TradingCalendar=",TradingCalendar,sep=""))			
-
-w_wsd_data = w.wsd("I1601.DCE","open","2015-10-13","2015-11-12","TradingCalendar=DCE;Fill=Previous")
