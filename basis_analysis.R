@@ -2,157 +2,103 @@
 #options(width = 438L)
 #
 ##---------------- contracts ----------------
-#Exchange = "DCE"; Underlying = "I"; c.mg = c("01","05","09"); fmonth = c("01","05","09");
-#Exchange = "DCE"; Underlying = "M"; c.mg = c("01","05","09"); fmonth = c("05");
-#Exchange = "SHFE"; Underlying = "CU"; c.mg = formatC(seq(1,12), width=2, flag='0'); lmonth = c("02")
-##Benchmark = c("S0174655");
-##Underlying ="M"; Exchange = "DCE"; Benchmark = NA;
-##Underlying ="RB"; Exchange = "SHF"; Benchmark = NA;
-##Underlying ="P"; Exchange = "DCE"; Benchmark = NA;
-
-#---------------- import to csv file ----------------
-#choose which dataset file to use
-Symbol = paste(Exchange, Underlying, sep=".")
-fpath = paste(getwd(), "/quandl_dataset/", sep="")
-fname = paste(Symbol, "csv", sep=".")
-dtable = read.table(file=paste(fpath,fname,sep=""), header=TRUE, sep=",")
-dtable$Date = as.Date(dtable$Date)
-
-#contract years
-c.yg = formatC(seq(2011,2016), width=4, flag='0')
-
-#contract months
-#leading month contract
-
-#---------------- divide dtable into price data and benchmark data ----------------
-#e.g., DATETIME, I1403.DCE.cl, I1403.DCE.vo, I1403.DCE.oi, I1404.DCE.cl, I1404.DCE.vo, I1404.DCE.oi, ...
-id = names(dtable) %in% c("Date")
-c.dt = dtable[!id]
-rownames(c.dt) = dtable$Date
-#field name of c.dt
-cf = data.frame(matrix(unlist(strsplit(names(c.dt),"[.]")), ncol=5, byrow=TRUE))
-names(cf) = c("Exchange", "Underlying", "Year", "Month", "Field")
-
-#check c.dt
-ind = apply(c.dt, 2, function(x){all(is.na(x))}) %in% TRUE
-print("------------------------- c.dt error -------------------------")
-print(matrix(colnames(c.dt)[ind]))
-
-#choose only c.mg related month, and fd2 related fields, fd = c("close", "volume", "oi")
-ind = ((cf$Year %in% c.yg) & (cf$Month %in% c.mg) & (cf$Field=="Settle"))
-dataset = c.dt[,ind]
-#exclude rows with all NA value
-gg = apply(dataset, 1, function(x){!all(is.na(x))})
-dataset = dataset[gg,]
-
-#ind = ((cf$Year %in% c.yg) & (cf$Month %in% c.mg) & cf$Field == "oi")
-#dataset.oi = c.dt[,ind]
-
-####################################################################################################
-#data analysis
-####################################################################################################
-#spread and butterfly analysis
-tmp = dim(dataset)[2]
-ntmp = names(dataset)
-sp0 = dataset[,seq(1,tmp-1)] -   dataset[,seq(2,tmp)]
-bf0 = dataset[,seq(1,tmp-2)] - 2*dataset[,seq(2,tmp-1)] + dataset[,seq(3,tmp)]
-names(sp0) = paste(ntmp[seq(1,tmp-1)], "-",   ntmp[seq(2,tmp)])
-names(bf0) = paste(ntmp[seq(1,tmp-2)], "-2*", ntmp[seq(2,tmp-1)], "+", ntmp[seq(3,tmp)])
-
-#sp / bf column names index
-sp.cf = data.frame(C1=ntmp[seq(1,tmp-1)], C2=ntmp[seq(2,tmp)])
-bf.cf = data.frame(C1=ntmp[seq(1,tmp-2)], C2=ntmp[seq(2,tmp-1)], C3=ntmp[seq(3,tmp)])
-for (CN in c("C1","C2")) {
-	mq = data.frame(matrix(unlist(strsplit(as.character(sp.cf[,CN]),"[.]")), ncol=5, byrow=TRUE))
-	names(mq) = paste(CN, c("Exchange", "Underlying", "Year", "Month", "Field"), sep=".")
-	sp.cf = cbind(sp.cf, mq)
-}
-for (CN in c("C1","C2","C3")) {
-	mq = data.frame(matrix(unlist(strsplit(as.character(bf.cf[,CN]),"[.]")), ncol=5, byrow=TRUE))
-	names(mq) = paste(CN, c("Exchange", "Underlying", "Year", "Month", "Field"), sep=".")
-	bf.cf = cbind(bf.cf, mq)
-}
+#fmonth = "02"
 
 #leading month for both sp and bf
-sp = sp0[,(sp.cf[,"C1.Month"]%in%fmonth)]
-bf = bf0[,(bf.cf[,"C1.Month"]%in%fmonth)]
+sp = sp0[,(sp0.cf[,"C1.Month"]%in%fmonth)]
+bf = bf0[,(bf0.cf[,"C1.Month"]%in%fmonth)]
+#column header names
+sp.cf = sp0.cf[(sp0.cf[,"C1.Month"]%in%fmonth),]
+bf.cf = bf0.cf[(bf0.cf[,"C1.Month"]%in%fmonth),]
 
-month_str = paste("ActiveMonth.", paste(c.mg,collapse="."), "_FrontMonth.", paste(fmonth,collapse="."), sep="")
+#
+##	re-organize sp data	
+#mlen = max(apply(sp, 2, function(x){sum(!is.na(x))}))
+#sptmp = vector()
+#for (i in 1:dim(sp)[2]) {
+#	mtmp = sp[!is.na(sp[,i]),i]
+#	length(mtmp) = mlen
+#	sptmp = cbind(sptmp, mtmp)
+#}
+#nn = dim(sptmp)[1]
+#sp2 = sptmp[seq(max(1,nn-nend-nobs),nn-nend),]
+##	sp2 = sptmp
+#colnames(sp2) = names(sp)	
+#sp2
 
+
+
+
+
+# TODO TransData = function(sp, nend, nobs)
+# nend>=0, number of data points from the end; nobs is the number of obseration from nend
+# TransData(sp, 0, 500) includes all data points
+# TransData(sp, 20, 300) starts from the beginning and excludes the last month (e.g., delivery month)
+sp2 = TransData(sp, 0, 300)
+bf2 = TransData(bf, 0, 300)
+
+last_date = tail(rownames(dataset), n=1)
+month_str = paste("Active=", paste(c.mg,collapse="."), "_Front=", paste(fmonth,collapse="."), "_Data=", dsName, sep="")
+gpath = paste(getwd(),"/",Exchange,"_",Underlying,"/",sep="")
 ####################################################################################################
 #calendar spread
 ####################################################################################################
-#---------------- time series plot ----------------
-matplot(sp, type="l", col=dim(sp)[2]:1, xlab=paste(Symbol,"Day"), ylab="Calendar Spread", main=paste("TimeSeries_",month_str))
-legend('topleft', legend=names(sp), text.col=c(dim(sp)[2]:1,1), cex=0.65)
-grid()
-dev.copy(png, width=1440, height=785, filename=paste(paste(Symbol,"CS","TS",month_str,sep="_"),"png",sep="."))
-dev.off ()
+##---------------- time series plot ----------------
+#matplot(sp, type="l", col=dim(sp)[2]:1, xlab=paste(Symbol,"Day"), ylab="Calendar Spread", main=paste("TimeSeries_",month_str))
+#legend('topleft', legend=names(sp), text.col=c(dim(sp)[2]:1,1), cex=0.65)
+#grid()
+#dev.copy(png, width=1440, height=785, filename=paste(gpath,paste(Symbol,"CS","TS",month_str,sep="_"),".png",sep=""))
+#dev.off ()
+
+xlab = paste(Symbol, last_date, "exOutlier =", exOutlier)
 
 #---------------- seasonal plot ----------------
-mlen = max(apply(sp, 2, function(x){sum(!is.na(x))}))
-sp2 = vector()
-for (i in 1:dim(sp)[2]) {
-	mtmp = sp[!is.na(sp[,i]),i]
-	length(mtmp) = mlen
-	sp2 = cbind(sp2, mtmp)
-}
-colnames(sp2) = names(sp)
-matplot(sp2, type="l", col=dim(sp2)[2]:1, xlab=paste(Symbol,"Day"), ylab="Calendar Spread", main=paste("Seasonal_",month_str))
-#find the summary of each combination, return of summary() is a list
-summ = lapply(apply(sp2,2,summary), function(x){paste(paste(names(x),unlist(x),sep="="),collapse=" | ")})
-lgd = paste(names(summ),unlist(summ))
-legend('topleft', legend=lgd, text.col=dim(sp2)[2]:1, cex=0.65)
-grid()
-dev.copy(png, width=1440, height=785, filename=paste(paste(Symbol,"CS","Seasonal",month_str,sep="_"),"png",sep="."))
-dev.off ()
+# TODO ssplot = function(sp2, filename, width=1440, height=785, xlab="", ylab="", main="") 
+mlab = paste(month_str, "Seasonal", sep="_")
+#calendar spread
+pathname = paste(gpath,paste(Symbol,"CS",mlab,sep="_"),".png",sep="")
+ssplot(sp2, filename=pathname, xlab=xlab, ylab="Calendar Spread", main=mlab)
+#butterfly
+pathname = paste(gpath,paste(Symbol,"BF",mlab,sep="_"),".png",sep="")
+ssplot(bf2, filename=pathname, xlab=xlab, ylab="Butterfly", main=mlab)
 
 #---------------- histgram and density plot ----------------
-#check sp2, exclude all NA column
-ind = apply(sp2, 2, function(x){all(is.na(x))}) %in% TRUE
-print("------------------------- sp2 error -------------------------")
-print(matrix(colnames(sp2)[ind]))
-#density analysis
-sp.den = apply(sp2[,!ind],2,density,na.rm=TRUE)
-xrange = range(lapply(sp.den, function(m){range(m$x)}))
-yrange = range(lapply(sp.den, function(m){range(m$y)}))
-plot(NA, xlim=xrange, ylim=c(0,yrange[2]), xlab=paste(Symbol,"Calendar Spread"), ylab="Probability", main=paste("Density_",month_str))
-for (i in 1:length(sp.den)) {
-	lines(sp.den[[i]], col=length(sp.den)-i+1)
-}
-legend('topleft', legend=names(sp.den), text.col=length(sp.den):1, cex=0.65)
-grid()
-dev.copy(png, width=1440, height=785, filename=paste(paste(Symbol,"CS","Hist",month_str,sep="_"),"png",sep="."))
-dev.off ()
+# TODO ssdensity = function(sp2, filename, width=1440, height=785, xlab="", ylab="", main="")
+mlab = paste(month_str, "Density", sep="_")
+pathname = paste(gpath,paste(Symbol,"CS",mlab,sep="_"),".png",sep="")
+ssdensity(sp2, filename=pathname, xlab=xlab, ylab="Calendar Spread Probability", main=mlab)
+pathname = paste(gpath,paste(Symbol,"BF",mlab,sep="_"),".png",sep="")
+ssdensity(bf2, filename=pathname, xlab=xlab, ylab="Butterfly Probability", main=mlab)
 
-next
+#---------------- box plot ----------------
+mlab = paste(month_str, "Boxplot", sep="_")
+pathname = paste(gpath,paste(Symbol,"CS",mlab,sep="_"),".png",sep="")
+ssboxplot(sp2, (sp.cf[,"C1.Month"]=="01"), filename=pathname, names=sp.cf$ShortName, xlab=xlab, ylab="Calendar Spread", main=mlab)
+pathname = paste(gpath,paste(Symbol,"BF",mlab,sep="_"),".png",sep="")
+ssboxplot(bf2, (bf.cf[,"C1.Month"]=="01"), filename=pathname, names=bf.cf$ShortName, xlab=xlab, ylab="Butterfly", main=mlab)
+
+
+
+#colvec = rep("white", dim(bf2)[2])
+#cind = bf.cf[,"C1.Month"]=="01"
+#colvec[cind] = "red"
+#boxplot(bf2, col=colvec, names=bf.cf$ShortName, xlab=xlab, ylab="Butterfly", main=mlab)
+#lobs = tail(na.locf(bf2), n=1)
+#points(seq(1,dim(bf2)[2]), lobs, col="blue", pch=19, cex=1.25)
+#grid()
+#dev.copy(png, width=1440, height=785, filename=paste(gpath,paste(Symbol,"BF",mlab,sep="_"),".png",sep=""))
+#dev.off ()
+
+#next
 ####################################################################################################
 #butterfly
 ####################################################################################################
-#---------------- time series plot ----------------
-matplot(bf, type="l", col=dim(bf)[2]:1, xlab=paste(Symbol,"Day"), ylab="Butterfly", main=paste("TimeSeries_",month_str))
-legend('topleft', legend=names(bf), text.col=c(dim(bf)[2]:1,1), cex=0.65)
-grid()
-dev.copy(png, width=1440, height=785, filename=paste(paste(Symbol,"BF","TS",month_str,sep="_"),"png",sep="."))
-dev.off ()
-
-#---------------- seasonal plot ----------------
-mlen = max(apply(bf, 2, function(x){sum(!is.na(x))}))
-bf2 = vector()
-for (i in 1:dim(bf)[2]) {
-	mtmp = bf[!is.na(bf[,i]),i]
-	length(mtmp) = mlen
-	bf2 = cbind(bf2, mtmp)
-}
-colnames(bf2) = names(bf)
-matplot(bf2, type="l", col=dim(bf2)[2]:1, xlab=paste(Symbol,"Day"), ylab="Butterfly", main=paste("Seasonal_",month_str))
-#find the max and min of each combination
-summ = lapply(apply(bf2,2,summary), function(x){paste(paste(names(x),unlist(x),sep="="),collapse=" | ")})
-lgd = paste(names(summ),unlist(summ))
-legend('topleft', legend=lgd, text.col=dim(bf2)[2]:1, cex=0.65)
-grid()
-dev.copy(png, width=1440, height=785, filename=paste(paste(Symbol,"BF","Seasonal",month_str,sep="_"),"png",sep="."))
-dev.off ()
+##---------------- time series plot ----------------
+#matplot(bf, type="l", col=dim(bf)[2]:1, xlab=paste(Symbol,"Day"), ylab="Butterfly", main=paste("TimeSeries_",month_str))
+#legend('topleft', legend=names(bf), text.col=c(dim(bf)[2]:1,1), cex=0.65)
+#grid()
+#dev.copy(png, width=1440, height=785, filename=paste(paste(Symbol,"BF","TS",month_str,sep="_"),"png",sep="."))
+#dev.off ()
 
 #---------------- histgram and density plot ----------------
 
