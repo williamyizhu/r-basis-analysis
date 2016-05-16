@@ -11,45 +11,19 @@ bf = bf0[,(bf0.cf[,"C1.Month"]%in%fmonth)]
 sp.cf = sp0.cf[(sp0.cf[,"C1.Month"]%in%fmonth),]
 bf.cf = bf0.cf[(bf0.cf[,"C1.Month"]%in%fmonth),]
 
-#
-##	re-organize sp data	
-#mlen = max(apply(sp, 2, function(x){sum(!is.na(x))}))
-#sptmp = vector()
-#for (i in 1:dim(sp)[2]) {
-#	mtmp = sp[!is.na(sp[,i]),i]
-#	length(mtmp) = mlen
-#	sptmp = cbind(sptmp, mtmp)
-#}
-#nn = dim(sptmp)[1]
-#sp2 = sptmp[seq(max(1,nn-nend-nobs),nn-nend),]
-##	sp2 = sptmp
-#colnames(sp2) = names(sp)	
-#sp2
-
-
-
-
-
 # TODO TransData = function(sp, nend, nobs)
 # nend>=0, number of data points from the end; nobs is the number of obseration from nend
 # TransData(sp, 0, 500) includes all data points
 # TransData(sp, 20, 300) starts from the beginning and excludes the last month (e.g., delivery month)
-sp2 = TransData(sp, 0, 300)
-bf2 = TransData(bf, 0, 300)
+sp2 = TransData(sp)
+bf2 = TransData(bf)
 
 last_date = tail(rownames(dataset), n=1)
 month_str = paste("Active=", paste(c.mg,collapse="."), "_Front=", paste(fmonth,collapse="."), "_Data=", dsName, sep="")
-gpath = paste(getwd(),"/",Exchange,"_",Underlying,"/",sep="")
+gpath = paste(getwd(),"/",Symbol,"/",sep="")
 ####################################################################################################
-#calendar spread
+#calendar spread and butterfly
 ####################################################################################################
-##---------------- time series plot ----------------
-#matplot(sp, type="l", col=dim(sp)[2]:1, xlab=paste(Symbol,"Day"), ylab="Calendar Spread", main=paste("TimeSeries_",month_str))
-#legend('topleft', legend=names(sp), text.col=c(dim(sp)[2]:1,1), cex=0.65)
-#grid()
-#dev.copy(png, width=1440, height=785, filename=paste(gpath,paste(Symbol,"CS","TS",month_str,sep="_"),".png",sep=""))
-#dev.off ()
-
 xlab = paste(Symbol, last_date, "exOutlier =", exOutlier)
 
 #---------------- seasonal plot ----------------
@@ -71,6 +45,7 @@ pathname = paste(gpath,paste(Symbol,"BF",mlab,sep="_"),".png",sep="")
 ssdensity(bf2, filename=pathname, xlab=xlab, ylab="Butterfly Probability", main=mlab)
 
 #---------------- box plot ----------------
+# TODO ssboxplot = function(sp2, imonth, filename, width=1440, height=785, names="", xlab="", ylab="", main="")
 mlab = paste(month_str, "Boxplot", sep="_")
 pathname = paste(gpath,paste(Symbol,"CS",mlab,sep="_"),".png",sep="")
 ssboxplot(sp2, (sp.cf[,"C1.Month"]=="01"), filename=pathname, names=sp.cf$ShortName, xlab=xlab, ylab="Calendar Spread", main=mlab)
