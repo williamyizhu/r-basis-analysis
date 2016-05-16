@@ -15,12 +15,12 @@ source("//VMWARE-HOST/Shared Folders/Documents/workspace/r-basis-analysis/func_l
 #ExUL = data.frame(Exchange=character(), Underlying=character())
 source("//VMWARE-HOST/Shared Folders/Documents/workspace/r-basis-analysis/ExUL.R", echo=FALSE, encoding="GBK")
 ExUL = ExUL[ExUL$dsName=="wind",]
-#ExUL = ExUL[ExUL[,"Symbol"] %in% c("SHFE.CU","SHFE.AL","SHFE.ZN"),]
+ExUL = ExUL[ExUL[,"Symbol"] %in% c("SHFE.CU","SHFE.AL","SHFE.ZN"),]
 #ExUL = ExUL[ExUL[,"Symbol"] %in% c("SHFE.CU"),]
 #ExUL = ExUL[ExUL[,"Symbol"] %in% c("SHFE.AL"),]
 #ExUL = ExUL[ExUL[,"Symbol"] %in% c("SHFE.ZN"),]
 #ExUL = ExUL[ExUL[,"Symbol"] %in% c("SHFE.RU"),]
-ExUL = ExUL[ExUL[,"Symbol"] %in% c("DCE.I","DCE.J","SHFE.RB"),]
+#ExUL = ExUL[ExUL[,"Symbol"] %in% c("DCE.I","DCE.J","SHFE.RB"),]
 #ExUL = ExUL[ExUL[,"Symbol"] %in% c("DCE.I"),]
 #ExUL = ExUL[ExUL[,"Symbol"] %in% c("DCE.J"),]
 #ExUL = ExUL[ExUL[,"Symbol"] %in% c("SHFE.RB"),]
