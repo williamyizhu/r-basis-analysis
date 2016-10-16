@@ -9,11 +9,13 @@ options(width=438L)
 
 library(lubridate)
 library(zoo)
-source("//VMWARE-HOST/Shared Folders/Documents/workspace/r-basis-analysis/func_lib.R", echo=FALSE, encoding="GBK")
+source(paste(getwd(),"func_lib.R",sep="/"), echo=FALSE, encoding="GBK")
 
 ##---------------------------------- futures symbol ----------------------------------
 #ExUL = data.frame(Exchange=character(), Underlying=character())
-source("//VMWARE-HOST/Shared Folders/Documents/workspace/r-basis-analysis/ExUL.R", echo=FALSE, encoding="GBK")
+#source("//VMWARE-HOST/Shared Folders/Documents/workspace/r-basis-analysis/ExUL.R", echo=FALSE, encoding="GBK")
+source(paste(getwd(),"ExUL.R",sep="/"), echo=FALSE, encoding="GBK")
+
 ExUL = ExUL[ExUL$dsName=="wind",]
 ExUL = ExUL[ExUL[,"Symbol"] %in% c("SHFE.CU","SHFE.AL","SHFE.ZN"),]
 #ExUL = ExUL[ExUL[,"Symbol"] %in% c("SHFE.CU"),]
@@ -216,16 +218,17 @@ for (ijk in 1:dim(ExUL)[1]) {
 #	single month
 	for (fmonth in fmonth_vec) {
 		print(paste("--------------------------",Symbol,fmonth,"(",head(c.yg,n=1),"-",tail(c.yg,n=1),")","--------------------------"))
-		source("//VMWARE-HOST/Shared Folders/Documents/workspace/r-basis-analysis/basis_analysis.R", echo=FALSE, encoding="GBK")
+		source("basis_analysis.R", echo=FALSE, encoding="GBK")
+		
 	}
 #	all months
 	fmonth = fmonth_vec
 	print(paste("--------------------------",Symbol,paste(fmonth,collapse="."),"(",head(c.yg,n=1),"-",tail(c.yg,n=1),")","--------------------------"))
-	source("//VMWARE-HOST/Shared Folders/Documents/workspace/r-basis-analysis/basis_analysis.R", echo=FALSE, encoding="GBK")
+	source("basis_analysis.R", echo=FALSE, encoding="GBK")
 	
 #	term structure
 	print(paste("--------------------------",Symbol,"Term Structure","--------------------------"))
-	source("//VMWARE-HOST/Shared Folders/Documents/workspace/r-basis-analysis/term_structure.R", echo=FALSE, encoding="GBK")
+	source("term_structure.R", echo=FALSE, encoding="GBK")
 }
 
 ####################################################################################################
