@@ -13,12 +13,11 @@ source(paste(getwd(),"func_lib.R",sep="/"), echo=FALSE, encoding="GBK")
 
 ##---------------------------------- futures symbol ----------------------------------
 #ExUL = data.frame(Exchange=character(), Underlying=character())
-#source("//VMWARE-HOST/Shared Folders/Documents/workspace/r-basis-analysis/ExUL.R", echo=FALSE, encoding="GBK")
 source(paste(getwd(),"ExUL.R",sep="/"), echo=FALSE, encoding="GBK")
 
 ExUL = ExUL[ExUL$dsName=="wind",]
-ExUL = ExUL[ExUL[,"Symbol"] %in% c("SHFE.CU","SHFE.AL","SHFE.ZN"),]
-#ExUL = ExUL[ExUL[,"Symbol"] %in% c("SHFE.CU"),]
+#ExUL = ExUL[ExUL[,"Symbol"] %in% c("SHFE.CU","SHFE.AL","SHFE.ZN"),]
+ExUL = ExUL[ExUL[,"Symbol"] %in% c("SHFE.CU"),]
 #ExUL = ExUL[ExUL[,"Symbol"] %in% c("SHFE.AL"),]
 #ExUL = ExUL[ExUL[,"Symbol"] %in% c("SHFE.ZN"),]
 #ExUL = ExUL[ExUL[,"Symbol"] %in% c("SHFE.RU"),]
@@ -218,8 +217,7 @@ for (ijk in 1:dim(ExUL)[1]) {
 #	single month
 	for (fmonth in fmonth_vec) {
 		print(paste("--------------------------",Symbol,fmonth,"(",head(c.yg,n=1),"-",tail(c.yg,n=1),")","--------------------------"))
-		source("basis_analysis.R", echo=FALSE, encoding="GBK")
-		
+		source("basis_analysis.R", echo=FALSE, encoding="GBK")		
 	}
 #	all months
 	fmonth = fmonth_vec
