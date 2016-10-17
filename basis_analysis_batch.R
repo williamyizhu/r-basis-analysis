@@ -17,7 +17,7 @@ source(paste(getwd(),"ExUL.R",sep="/"), echo=FALSE, encoding="GBK")
 
 ExUL = ExUL[ExUL$dsName=="wind",]
 ExUL = ExUL[ExUL[,"Symbol"] %in% c("SHFE.CU","SHFE.AL","SHFE.ZN"),]
-ExUL = ExUL[ExUL[,"Symbol"] %in% c("SHFE.CU"),]
+#ExUL = ExUL[ExUL[,"Symbol"] %in% c("SHFE.CU"),]
 #ExUL = ExUL[ExUL[,"Symbol"] %in% c("SHFE.AL"),]
 #ExUL = ExUL[ExUL[,"Symbol"] %in% c("SHFE.ZN"),]
 #ExUL = ExUL[ExUL[,"Symbol"] %in% c("SHFE.RU"),]
